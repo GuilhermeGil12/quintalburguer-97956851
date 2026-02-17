@@ -24,8 +24,8 @@ const TableOrders = () => {
     refetchInterval: 5000,
   });
 
-  const { data: tables = [] } = useQuery({
-    queryKey: ["tables"],
+  const { data: tableData } = useQuery({
+    queryKey: ["table-detail", tableNumber],
     queryFn: async () => {
       const { supabase } = await import("@/integrations/supabase/client");
       const { data } = await supabase.from("tables").select("*").eq("number", tableNumber).single();
@@ -41,8 +41,8 @@ const TableOrders = () => {
       queryClient.invalidateQueries({ queryKey: ["open-orders"] });
       // Check if this was the last order for the table
       const remaining = orders.filter((o: any) => o.id !== orderId);
-      if (remaining.length === 0 && tables) {
-        await updateTableStatus((tables as any).id, "available");
+      if (remaining.length === 0 && tableData) {
+        await updateTableStatus((tableData as any).id, "available");
         queryClient.invalidateQueries({ queryKey: ["tables"] });
         navigate("/");
       }
@@ -164,9 +164,9 @@ const TableOrders = () => {
         />
       )}
 
-      {showNewOrder && tables && (
+      {showNewOrder && tableData && (
         <NewOrderDialog
-          table={{ id: (tables as any).id, number: tableNumber }}
+          table={{ id: (tableData as any).id, number: tableNumber }}
           open={showNewOrder}
           onClose={() => {
             setShowNewOrder(false);
