@@ -38,6 +38,177 @@ export type Database = {
         }
         Relationships: []
       }
+      ingredients: {
+        Row: {
+          created_at: string
+          id: string
+          min_alert: number
+          name: string
+          stock_qty: number
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_alert?: number
+          name: string
+          stock_qty?: number
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_alert?: number
+          name?: string
+          stock_qty?: number
+          unit?: string
+        }
+        Relationships: []
+      }
+      online_order_item_extras: {
+        Row: {
+          extra_id: string
+          extra_name: string
+          extra_price: number
+          id: string
+          online_order_item_id: string
+        }
+        Insert: {
+          extra_id: string
+          extra_name: string
+          extra_price: number
+          id?: string
+          online_order_item_id: string
+        }
+        Update: {
+          extra_id?: string
+          extra_name?: string
+          extra_price?: number
+          id?: string
+          online_order_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_order_item_extras_extra_id_fkey"
+            columns: ["extra_id"]
+            isOneToOne: false
+            referencedRelation: "extras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "online_order_item_extras_online_order_item_id_fkey"
+            columns: ["online_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "online_order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_order_items: {
+        Row: {
+          extras_total: number
+          id: string
+          observations: string | null
+          online_order_id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          extras_total?: number
+          id?: string
+          observations?: string | null
+          online_order_id: string
+          product_id: string
+          product_name: string
+          quantity?: number
+          total: number
+          unit_price: number
+        }
+        Update: {
+          extras_total?: number
+          id?: string
+          observations?: string | null
+          online_order_id?: string
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_order_items_online_order_id_fkey"
+            columns: ["online_order_id"]
+            isOneToOne: false
+            referencedRelation: "online_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "online_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_orders: {
+        Row: {
+          address: string | null
+          change_for: number | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_fee: number
+          delivery_type: string
+          id: string
+          needs_change: boolean
+          notes: string | null
+          payment_method: string
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          change_for?: number | null
+          created_at?: string
+          customer_name: string
+          customer_phone: string
+          delivery_fee?: number
+          delivery_type?: string
+          id?: string
+          needs_change?: boolean
+          notes?: string | null
+          payment_method?: string
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          change_for?: number | null
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          delivery_fee?: number
+          delivery_type?: string
+          id?: string
+          needs_change?: boolean
+          notes?: string | null
+          payment_method?: string
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_item_extras: {
         Row: {
           extra_id: string
@@ -145,6 +316,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          attendant_name: string | null
           client_name: string | null
           closed_at: string | null
           created_at: string
@@ -156,6 +328,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          attendant_name?: string | null
           client_name?: string | null
           closed_at?: string | null
           created_at?: string
@@ -167,6 +340,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          attendant_name?: string | null
           client_name?: string | null
           closed_at?: string | null
           created_at?: string
@@ -183,6 +357,42 @@ export type Database = {
             columns: ["table_id"]
             isOneToOne: false
             referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_ingredients: {
+        Row: {
+          id: string
+          ingredient_id: string
+          product_id: string
+          qty_used: number
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          product_id: string
+          qty_used?: number
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          product_id?: string
+          qty_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_ingredients_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_ingredients_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -217,6 +427,51 @@ export type Database = {
           image_url?: string | null
           name?: string
           price?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }
