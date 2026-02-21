@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { createOrder } from "@/lib/supabase-helpers";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Props {
@@ -18,11 +19,12 @@ const NewOrderDialog = ({ table, open, onClose }: Props) => {
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
   const handleCreate = async () => {
     setLoading(true);
     try {
-      await createOrder(table.id, table.number, clientName || undefined);
+      await createOrder(table.id, table.number, clientName || undefined, profile?.display_name);
       queryClient.invalidateQueries({ queryKey: ["tables"] });
       queryClient.invalidateQueries({ queryKey: ["open-orders"] });
       toast.success("Comanda aberta!");
@@ -56,6 +58,9 @@ const NewOrderDialog = ({ table, open, onClose }: Props) => {
               autoFocus
             />
           </div>
+          {profile && (
+            <p className="text-xs text-muted-foreground">Atendente: {profile.display_name}</p>
+          )}
           <Button
             onClick={handleCreate}
             disabled={loading}

@@ -91,10 +91,10 @@ export const fetchOrdersByTable = async (tableNumber: number) => {
   return data;
 };
 
-export const createOrder = async (tableId: string, tableNumber: number, clientName?: string) => {
+export const createOrder = async (tableId: string, tableNumber: number, clientName?: string, attendantName?: string) => {
   const { data, error } = await supabase
     .from("orders")
-    .insert({ table_id: tableId, table_number: tableNumber, client_name: clientName || `Mesa ${tableNumber}` } as any)
+    .insert({ table_id: tableId, table_number: tableNumber, client_name: clientName || `Mesa ${tableNumber}`, attendant_name: attendantName } as any)
     .select()
     .single();
   if (error) throw error;
