@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { BarChart3, TrendingUp, Clock, DollarSign, Banknote, QrCode, CreditCard, CalendarDays, Users, Plus, Trash2, Settings, Truck } from "lucide-react";
+import { BarChart3, TrendingUp, Clock, DollarSign, Banknote, QrCode, CreditCard, CalendarDays, Users, Plus, Trash2, Settings, Truck, Store, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ const Admin = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "users" | "online" | "settings">("dashboard");
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [historyMonths, setHistoryMonths] = useState("1");
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
   // User management
   const [showUserForm, setShowUserForm] = useState(false);
@@ -23,6 +25,14 @@ const Admin = () => {
 
   // Settings
   const [deliveryFee, setDeliveryFee] = useState("");
+
+  const toggleExpand = (id: string) => {
+    setExpandedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // Fetch orders for selected date
   const { data: dateOrders = [] } = useQuery({
@@ -42,15 +52,53 @@ const Admin = () => {
     refetchInterval: 15000,
   });
 
-  const { data: allOrders = [] } = useQuery({
-    queryKey: ["all-closed-orders"],
+  // Fetch closed online orders for the selected date (for dashboard revenue)
+  const { data: dateOnlineOrders = [] } = useQuery({
+    queryKey: ["closed-online-orders-date", selectedDate],
     queryFn: async () => {
+      const start = new Date(selectedDate + "T00:00:00");
+      const end = new Date(selectedDate + "T23:59:59");
+      const { data } = await supabase
+        .from("online_orders")
+        .select("*, online_order_items(*, online_order_item_extras(*))")
+        .eq("status", "delivered")
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString())
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    refetchInterval: 15000,
+  });
+
+  // History with flexible months
+  const { data: allOrders = [] } = useQuery({
+    queryKey: ["all-closed-orders", historyMonths],
+    queryFn: async () => {
+      const since = new Date();
+      since.setMonth(since.getMonth() - Number(historyMonths));
       const { data } = await supabase
         .from("orders")
         .select("*, order_items(*, order_item_extras(*))")
         .eq("status", "closed")
+        .gte("closed_at", since.toISOString())
         .order("closed_at", { ascending: false })
-        .limit(100);
+        .limit(500);
+      return data || [];
+    },
+  });
+
+  const { data: allOnlineOrdersHistory = [] } = useQuery({
+    queryKey: ["all-online-orders-history", historyMonths],
+    queryFn: async () => {
+      const since = new Date();
+      since.setMonth(since.getMonth() - Number(historyMonths));
+      const { data } = await supabase
+        .from("online_orders")
+        .select("*, online_order_items(*, online_order_item_extras(*))")
+        .eq("status", "delivered")
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(500);
       return data || [];
     },
   });
@@ -80,17 +128,31 @@ const Admin = () => {
     refetchInterval: 10000,
   });
 
-  // Financials for selected date
-  const totalRevenue = dateOrders.reduce((sum: number, o: any) => sum + Number(o.total), 0);
+  // Financials for selected date - include both presential and online
+  const presentialRevenue = dateOrders.reduce((sum: number, o: any) => sum + Number(o.total), 0);
+  const onlineRevenue = dateOnlineOrders.reduce((sum: number, o: any) => sum + Number(o.total), 0);
+  const totalRevenue = presentialRevenue + onlineRevenue;
+
   const byPayment = dateOrders.reduce((acc: any, o: any) => {
     acc[o.payment_method] = (acc[o.payment_method] || 0) + Number(o.total);
     return acc;
-  }, {});
+  }, {} as Record<string, number>);
+  dateOnlineOrders.forEach((o: any) => {
+    byPayment[o.payment_method] = (byPayment[o.payment_method] || 0) + Number(o.total);
+  });
 
-  // Top products
+  // Top products (both presential + online)
   const productCounts: Record<string, { name: string; count: number; revenue: number }> = {};
   dateOrders.forEach((o: any) => {
     (o.order_items || []).forEach((item: any) => {
+      const key = item.product_name;
+      if (!productCounts[key]) productCounts[key] = { name: key, count: 0, revenue: 0 };
+      productCounts[key].count += item.quantity;
+      productCounts[key].revenue += Number(item.total);
+    });
+  });
+  dateOnlineOrders.forEach((o: any) => {
+    (o.online_order_items || []).forEach((item: any) => {
       const key = item.product_name;
       if (!productCounts[key]) productCounts[key] = { name: key, count: 0, revenue: 0 };
       productCounts[key].count += item.quantity;
@@ -135,6 +197,23 @@ const Admin = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string, username: string) => {
+    if (username === "quintaladmin") {
+      toast.error("Não é possível deletar o admin principal");
+      return;
+    }
+    try {
+      const res = await supabase.functions.invoke("create-user", {
+        body: { action: "delete", user_id: userId },
+      });
+      if (res.error) throw res.error;
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      toast.success("Usuário removido!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao remover usuário");
+    }
+  };
+
   const handleSaveDeliveryFee = async () => {
     await supabase.from("settings").upsert({ key: "delivery_fee", value: deliveryFee, updated_at: new Date().toISOString() } as any, { onConflict: "key" });
     queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -167,7 +246,6 @@ const Admin = () => {
 
       {activeTab === "dashboard" && (
         <div className="space-y-4 animate-fade-in">
-          {/* Date picker */}
           <div className="glass-card p-4 flex items-center gap-3">
             <CalendarDays className="h-5 w-5 text-primary" />
             <Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
@@ -180,7 +258,7 @@ const Admin = () => {
               <span className="text-sm text-muted-foreground">Faturamento {selectedDate === new Date().toISOString().split("T")[0] ? "Hoje" : selectedDate}</span>
             </div>
             <p className="text-4xl font-bold text-primary">R$ {totalRevenue.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{dateOrders.length} comanda(s) encerrada(s)</p>
+            <p className="text-xs text-muted-foreground mt-1">{dateOrders.length} comanda(s) + {dateOnlineOrders.length} online</p>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -230,77 +308,177 @@ const Admin = () => {
 
       {activeTab === "history" && (
         <div className="space-y-3 animate-fade-in">
-          {allOrders.length === 0 && <p className="text-muted-foreground text-center py-10">Nenhuma comanda encerrada</p>}
-          {allOrders.map((order: any) => (
-            <div key={order.id} className="glass-card p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-semibold text-foreground">
-                    Mesa {String(order.table_number).padStart(2, "0")}
-                    {order.client_name && ` — ${order.client_name}`}
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    {order.closed_at && new Date(order.closed_at).toLocaleString("pt-BR")} · {paymentLabels[order.payment_method] || order.payment_method}
-                    {order.attendant_name && ` · Atendente: ${order.attendant_name}`}
-                  </p>
-                </div>
-                <span className="text-lg font-bold text-primary">R$ {Number(order.total).toFixed(2)}</span>
-              </div>
-              <div className="space-y-1">
-                {(order.order_items || []).map((item: any) => (
-                  <div key={item.id} className="text-xs text-muted-foreground flex justify-between">
-                    <span>{item.quantity}x {item.product_name}{item.order_item_extras?.length > 0 && ` (+${item.order_item_extras.map((e: any) => e.extra_name).join(", ")})`}</span>
-                    <span>R$ {Number(item.total).toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
+          <div className="glass-card p-4 flex items-center gap-3">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            <div className="flex-1">
+              <label className="text-xs text-muted-foreground block mb-1">Mostrar últimos (meses)</label>
+              <Input type="number" min="1" value={historyMonths} onChange={e => setHistoryMonths(e.target.value)}
+                className="bg-secondary border-border text-foreground h-10" placeholder="Qtd de meses" />
             </div>
-          ))}
+          </div>
+
+          {allOrders.length === 0 && allOnlineOrdersHistory.length === 0 && <p className="text-muted-foreground text-center py-10">Nenhuma comanda encerrada</p>}
+
+          {/* Presential orders */}
+          {allOrders.map((order: any) => {
+            const isExpanded = expandedOrders.has(order.id);
+            return (
+              <div key={order.id} className="glass-card p-4">
+                <button onClick={() => toggleExpand(order.id)} className="w-full text-left">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        Mesa {String(order.table_number).padStart(2, "0")}
+                        {order.client_name && ` — ${order.client_name}`}
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {order.closed_at && new Date(order.closed_at).toLocaleString("pt-BR")} · {paymentLabels[order.payment_method] || order.payment_method}
+                        {order.attendant_name && ` · Atendente: ${order.attendant_name}`}
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold text-primary">R$ {Number(order.total).toFixed(2)}</span>
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="space-y-1 mt-3 pt-3 border-t border-border">
+                    {(order.order_items || []).map((item: any) => (
+                      <div key={item.id} className="text-xs text-muted-foreground">
+                        <div className="flex justify-between">
+                          <span className="font-medium text-foreground">{item.quantity}x {item.product_name}</span>
+                          <span>R$ {Number(item.total).toFixed(2)}</span>
+                        </div>
+                        {item.order_item_extras?.length > 0 && (
+                          <p className="text-primary ml-4">+ {item.order_item_extras.map((e: any) => e.extra_name).join(", ")}</p>
+                        )}
+                        {item.observations && <p className="text-warning ml-4">Obs: {item.observations}</p>}
+                        {item.for_whom && <p className="ml-4">→ {item.for_whom}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Online orders in history */}
+          {allOnlineOrdersHistory.map((order: any) => {
+            const isExpanded = expandedOrders.has(order.id);
+            return (
+              <div key={order.id} className="glass-card p-4 border-l-4 border-l-primary">
+                <button onClick={() => toggleExpand(order.id)} className="w-full text-left">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        {order.delivery_type === "delivery" ? <Truck className="h-4 w-4 text-primary" /> : <Store className="h-4 w-4 text-primary" />}
+                        {order.customer_name} (Online)
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(order.created_at).toLocaleString("pt-BR")} · {paymentLabels[order.payment_method] || order.payment_method}
+                        {order.delivery_type === "delivery" ? " · Entrega" : " · Retirada"}
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold text-primary">R$ {Number(order.total).toFixed(2)}</span>
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="space-y-1 mt-3 pt-3 border-t border-border">
+                    {order.address && <p className="text-xs text-muted-foreground">📍 {order.address}</p>}
+                    {order.customer_phone && <p className="text-xs text-muted-foreground">📱 {order.customer_phone}</p>}
+                    {order.needs_change && <p className="text-xs text-warning">💵 Troco para R$ {Number(order.change_for).toFixed(2)}</p>}
+                    {order.notes && <p className="text-xs text-muted-foreground">Obs: {order.notes}</p>}
+                    {(order.online_order_items || []).map((item: any) => (
+                      <div key={item.id} className="text-xs text-muted-foreground">
+                        <div className="flex justify-between">
+                          <span className="font-medium text-foreground">{item.quantity}x {item.product_name}</span>
+                          <span>R$ {Number(item.total).toFixed(2)}</span>
+                        </div>
+                        {item.online_order_item_extras?.length > 0 && (
+                          <p className="text-primary ml-4">+ {item.online_order_item_extras.map((e: any) => e.extra_name).join(", ")}</p>
+                        )}
+                        {item.observations && <p className="text-warning ml-4">Obs: {item.observations}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {activeTab === "online" && (
         <div className="space-y-3 animate-fade-in">
           {onlineOrders.length === 0 && <p className="text-muted-foreground text-center py-10">Nenhum pedido online</p>}
-          {onlineOrders.map((order: any) => (
-            <div key={order.id} className="glass-card p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    {order.delivery_type === "delivery" ? <Truck className="h-4 w-4 text-primary" /> : <span>🏪</span>}
-                    {order.customer_name}
-                  </h4>
-                  <p className="text-xs text-muted-foreground">{order.customer_phone} · {new Date(order.created_at).toLocaleString("pt-BR")}</p>
-                  {order.address && <p className="text-xs text-muted-foreground mt-1">📍 {order.address}</p>}
-                </div>
-                <span className="text-lg font-bold text-primary">R$ {Number(order.total).toFixed(2)}</span>
-              </div>
-              <div className="space-y-1 mb-3">
-                {(order.online_order_items || []).map((item: any) => (
-                  <div key={item.id} className="text-xs text-muted-foreground flex justify-between">
-                    <span>{item.quantity}x {item.product_name}</span>
-                    <span>R$ {Number(item.total).toFixed(2)}</span>
+          {onlineOrders.map((order: any) => {
+            const isExpanded = expandedOrders.has(order.id);
+            return (
+              <div key={order.id} className="glass-card p-4">
+                <button onClick={() => toggleExpand(order.id)} className="w-full text-left">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        {order.delivery_type === "delivery" ? <Truck className="h-4 w-4 text-primary" /> : <Store className="h-4 w-4 text-primary" />}
+                        {order.customer_name}
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">{order.customer_phone} · {new Date(order.created_at).toLocaleString("pt-BR")}</p>
+                    </div>
+                    <span className="text-lg font-bold text-primary">R$ {Number(order.total).toFixed(2)}</span>
                   </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-xs px-3 py-1 rounded-full border ${order.status === "delivered" || order.status === "cancelled" ? "bg-muted text-muted-foreground" : "status-preparing"}`}>
-                  {statusLabels[order.status] || order.status}
-                </span>
-                {order.status !== "delivered" && order.status !== "cancelled" && (
-                  <select value={order.status} onChange={e => handleUpdateOnlineOrderStatus(order.id, e.target.value)}
-                    className="h-8 rounded-md bg-secondary border border-border text-foreground px-2 text-xs">
-                    <option value="pending">Pendente</option>
-                    <option value="confirmed">Confirmado</option>
-                    <option value="preparing">Preparando</option>
-                    <option value="out_for_delivery">Saiu p/ Entrega</option>
-                    <option value="delivered">Entregue</option>
-                    <option value="cancelled">Cancelado</option>
-                  </select>
+                </button>
+
+                {isExpanded && (
+                  <div className="space-y-2 mb-3 pt-2 border-t border-border">
+                    <div className="text-xs space-y-1">
+                      <p className="text-foreground font-medium">
+                        {order.delivery_type === "delivery" ? "🚛 Entrega" : "🏪 Retirada no local"}
+                      </p>
+                      {order.address && <p className="text-muted-foreground">📍 {order.address}</p>}
+                      <p className="text-muted-foreground">
+                        💰 {paymentLabels[order.payment_method] || order.payment_method}
+                        {order.needs_change && ` · Troco para R$ ${Number(order.change_for).toFixed(2)}`}
+                      </p>
+                      {order.notes && <p className="text-warning">Obs: {order.notes}</p>}
+                    </div>
+                    {(order.online_order_items || []).map((item: any) => (
+                      <div key={item.id} className="text-xs text-muted-foreground">
+                        <div className="flex justify-between">
+                          <span className="font-medium text-foreground">{item.quantity}x {item.product_name}</span>
+                          <span>R$ {Number(item.total).toFixed(2)}</span>
+                        </div>
+                        {item.online_order_item_extras?.length > 0 && (
+                          <p className="text-primary ml-4">+ {item.online_order_item_extras.map((e: any) => e.extra_name).join(", ")}</p>
+                        )}
+                        {item.observations && <p className="text-warning ml-4">Obs: {item.observations}</p>}
+                      </div>
+                    ))}
+                    {order.delivery_type === "delivery" && order.delivery_fee > 0 && (
+                      <p className="text-xs text-muted-foreground">Taxa de entrega: R$ {Number(order.delivery_fee).toFixed(2)}</p>
+                    )}
+                  </div>
                 )}
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-xs px-3 py-1 rounded-full border ${order.status === "delivered" || order.status === "cancelled" ? "bg-muted text-muted-foreground" : "status-preparing"}`}>
+                    {statusLabels[order.status] || order.status}
+                  </span>
+                  {order.status !== "delivered" && order.status !== "cancelled" && (
+                    <select value={order.status} onChange={e => handleUpdateOnlineOrderStatus(order.id, e.target.value)}
+                      className="h-8 rounded-md bg-secondary border border-border text-foreground px-2 text-xs">
+                      <option value="pending">Pendente</option>
+                      <option value="confirmed">Confirmado</option>
+                      <option value="preparing">Preparando</option>
+                      <option value="out_for_delivery">Saiu p/ Entrega</option>
+                      <option value="delivered">Entregue</option>
+                      <option value="cancelled">Cancelado</option>
+                    </select>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -316,6 +494,11 @@ const Admin = () => {
                 <h4 className="font-semibold text-foreground">{u.display_name}</h4>
                 <p className="text-xs text-muted-foreground">@{u.username}</p>
               </div>
+              {u.username !== "quintaladmin" && (
+                <button onClick={() => handleDeleteUser(u.user_id, u.username)} className="touch-target p-2 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -89,9 +89,25 @@ const AddItemSheet = ({ orderId, open, onClose }: Props) => {
         await addOrderItemExtras(item.id, extrasData);
       }
 
+      // Deduct ingredients from stock
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: recipes } = await supabase.from("product_ingredients").select("*").eq("product_id", selectedProduct.id);
+        if (recipes && recipes.length > 0) {
+          for (const r of recipes) {
+            const { data: ing } = await supabase.from("ingredients").select("stock_qty").eq("id", r.ingredient_id).single();
+            if (ing) {
+              const newQty = Math.max(0, Number(ing.stock_qty) - r.qty_used * quantity);
+              await supabase.from("ingredients").update({ stock_qty: newQty } as any).eq("id", r.ingredient_id);
+            }
+          }
+        }
+      } catch (e) { console.error("Ingredient deduction error:", e); }
+
       await updateOrderTotal(orderId);
       queryClient.invalidateQueries({ queryKey: ["table-orders"] });
       queryClient.invalidateQueries({ queryKey: ["open-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["ingredients"] });
       toast.success(`${selectedProduct.name} adicionado!`);
       // Reset for another item
       setSelectedProduct(null);

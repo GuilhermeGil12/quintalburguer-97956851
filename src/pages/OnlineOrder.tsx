@@ -79,21 +79,29 @@ const OnlineOrder = () => {
   };
 
   const handleSubmitOrder = async () => {
-    if (!customerName || !customerPhone) {
-      toast.error("Preencha nome e telefone");
+    if (!customerName.trim()) {
+      toast.error("Preencha seu nome");
       return;
     }
-    if (deliveryType === "delivery" && !address) {
+    if (!customerPhone.trim()) {
+      toast.error("Preencha o telefone");
+      return;
+    }
+    if (deliveryType === "delivery" && !address.trim()) {
       toast.error("Preencha o endereço de entrega");
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error("Adicione itens ao carrinho");
       return;
     }
 
     setLoading(true);
     try {
       const { data: order, error } = await supabase.from("online_orders").insert({
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        address: deliveryType === "delivery" ? address : null,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        address: deliveryType === "delivery" ? address.trim() : null,
         delivery_type: deliveryType,
         payment_method: paymentMethod,
         needs_change: needsChange,
@@ -101,12 +109,11 @@ const OnlineOrder = () => {
         subtotal,
         delivery_fee: deliveryFee,
         total,
-        notes: notes || null,
+        notes: notes.trim() || null,
       } as any).select().single();
 
       if (error) throw error;
 
-      // Insert items
       for (const item of cart) {
         const extrasTotal = item.selectedExtras.reduce((s: number, e: any) => s + Number(e.price), 0);
         const itemTotal = (Number(item.product.price) + extrasTotal) * item.quantity;
@@ -135,6 +142,9 @@ const OnlineOrder = () => {
           );
         }
       }
+
+      // Deduct ingredients from stock
+      await deductIngredients(cart);
 
       setStep("done");
       toast.success("Pedido enviado com sucesso!");
@@ -171,7 +181,7 @@ const OnlineOrder = () => {
           </button>
         )}
         <div>
-          <h1 className="text-3xl text-primary">🍔 BurgerCommand</h1>
+          <h1 className="text-3xl text-primary">🍔 Quintal Burguer</h1>
           <p className="text-sm text-muted-foreground">
             {step === "menu" ? "Faça seu pedido" : step === "cart" ? "Seu carrinho" : "Finalizar pedido"}
           </p>
@@ -387,5 +397,31 @@ const OnlineOrder = () => {
     </div>
   );
 };
+
+// Helper: deduct ingredients from stock based on product recipes
+async function deductIngredients(cart: CartItem[]) {
+  try {
+    const { data: recipes } = await supabase.from("product_ingredients").select("*");
+    if (!recipes || recipes.length === 0) return;
+
+    const deductions: Record<string, number> = {};
+    for (const item of cart) {
+      const productRecipe = recipes.filter(r => r.product_id === item.product.id);
+      for (const r of productRecipe) {
+        deductions[r.ingredient_id] = (deductions[r.ingredient_id] || 0) + r.qty_used * item.quantity;
+      }
+    }
+
+    for (const [ingredientId, qty] of Object.entries(deductions)) {
+      const { data: ing } = await supabase.from("ingredients").select("stock_qty").eq("id", ingredientId).single();
+      if (ing) {
+        const newQty = Math.max(0, Number(ing.stock_qty) - qty);
+        await supabase.from("ingredients").update({ stock_qty: newQty } as any).eq("id", ingredientId);
+      }
+    }
+  } catch (err) {
+    console.error("Error deducting ingredients:", err);
+  }
+}
 
 export default OnlineOrder;

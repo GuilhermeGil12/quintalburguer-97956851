@@ -20,8 +20,13 @@ const CloseOrderDialog = ({ order, open, onClose, onConfirm }: Props) => {
   const [selected, setSelected] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
+  const allReady = (order.order_items || []).every((item: any) => item.kitchen_status === "ready");
+
   const handleConfirm = async () => {
     if (!selected) return;
+    if (!allReady) {
+      return;
+    }
     setLoading(true);
     await onConfirm(order.id, selected, Number(order.total));
     setLoading(false);
@@ -61,12 +66,18 @@ const CloseOrderDialog = ({ order, open, onClose, onConfirm }: Props) => {
             </div>
           </div>
 
+          {!allReady && (
+            <div className="text-center py-2 px-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <p className="text-sm text-destructive font-medium">⚠ Todos os itens precisam estar prontos para fechar a comanda</p>
+            </div>
+          )}
+
           <Button
             onClick={handleConfirm}
-            disabled={!selected || loading}
+            disabled={!selected || loading || !allReady}
             className="w-full h-14 text-lg font-semibold gradient-primary text-primary-foreground touch-target"
           >
-            {loading ? "Encerrando..." : "Confirmar Pagamento"}
+            {loading ? "Encerrando..." : !allReady ? "Aguardando itens ficarem prontos" : "Confirmar Pagamento"}
           </Button>
         </div>
       </DialogContent>
