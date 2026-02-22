@@ -16,7 +16,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { username, password, display_name } = await req.json();
+    const body = await req.json();
+
+    // Delete user action
+    if (body.action === "delete" && body.user_id) {
+      // Delete profile first
+      await supabaseAdmin.from("profiles").delete().eq("user_id", body.user_id);
+      // Delete auth user
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(body.user_id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ message: "User deleted" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create user action
+    const { username, password, display_name } = body;
 
     if (!username || !password || !display_name) {
       throw new Error("username, password, and display_name are required");
@@ -24,7 +39,6 @@ Deno.serve(async (req) => {
 
     const email = `${username.toLowerCase()}@burgercommand.app`;
 
-    // Create auth user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -33,7 +47,6 @@ Deno.serve(async (req) => {
 
     if (authError) throw authError;
 
-    // Create profile
     const { error: profileError } = await supabaseAdmin.from("profiles").insert({
       user_id: authData.user.id,
       username: username.toLowerCase(),

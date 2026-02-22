@@ -27,10 +27,11 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
-      <div className="glass-card p-8 w-full max-w-sm">
+      <div className="glass-card p-8 w-full max-w-sm overflow-hidden">
         <div className="text-center mb-8">
-          <h1 className="text-5xl text-primary mb-2">🍔 BurgerCommand</h1>
-          <p className="text-muted-foreground text-sm">Faça login para continuar</p>
+          <div className="text-5xl mb-2">🍔</div>
+          <h1 className="text-4xl text-primary leading-tight">Quintal Burguer</h1>
+          <p className="text-muted-foreground text-sm mt-1">Faça login para continuar</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
