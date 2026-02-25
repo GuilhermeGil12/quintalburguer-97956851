@@ -25,6 +25,7 @@ const Admin = () => {
 
   // Settings
   const [deliveryFee, setDeliveryFee] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
 
   const toggleExpand = (id: string) => {
     setExpandedOrders(prev => {
@@ -220,6 +221,12 @@ const Admin = () => {
     toast.success("Taxa atualizada!");
   };
 
+  const handleSaveWhatsappNumber = async () => {
+    await supabase.from("settings").upsert({ key: "whatsapp_number", value: whatsappNumber, updated_at: new Date().toISOString() } as any, { onConflict: "key" });
+    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    toast.success("Número do WhatsApp atualizado!");
+  };
+
   const handleUpdateOnlineOrderStatus = async (orderId: string, status: string) => {
     await supabase.from("online_orders").update({ status, updated_at: new Date().toISOString() } as any).eq("id", orderId);
     queryClient.invalidateQueries({ queryKey: ["online-orders"] });
@@ -227,6 +234,7 @@ const Admin = () => {
   };
 
   const currentDeliveryFee = settings.find((s: any) => s.key === "delivery_fee")?.value || "5.00";
+  const currentWhatsappNumber = settings.find((s: any) => s.key === "whatsapp_number")?.value || "";
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-6">
@@ -237,7 +245,7 @@ const Admin = () => {
 
       <div className="flex gap-2 mb-5 overflow-x-auto pb-2">
         {([["dashboard", "Dashboard"], ["history", "Histórico"], ["online", "Online"], ["users", "Usuários"], ["settings", "Config"]] as const).map(([key, label]) => (
-          <button key={key} onClick={() => { setActiveTab(key as any); if (key === "settings") setDeliveryFee(currentDeliveryFee); }}
+          <button key={key} onClick={() => { setActiveTab(key as any); if (key === "settings") { setDeliveryFee(currentDeliveryFee); setWhatsappNumber(currentWhatsappNumber); } }}
             className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === key ? "gradient-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
             {label}
           </button>
@@ -517,6 +525,22 @@ const Admin = () => {
               <Button onClick={handleSaveDeliveryFee} className="h-12 gradient-primary text-primary-foreground touch-target">Salvar</Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">Valor atual: R$ {currentDeliveryFee}</p>
+          </div>
+
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-bold text-foreground">WhatsApp do Estabelecimento</h3>
+            </div>
+            <div className="flex gap-2">
+              <Input type="text" value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)}
+                className="bg-secondary border-border text-foreground h-12 flex-1" placeholder="Ex: 5511999999999" />
+              <Button onClick={handleSaveWhatsappNumber} className="h-12 gradient-primary text-primary-foreground touch-target">Salvar</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {currentWhatsappNumber ? `Número atual: ${currentWhatsappNumber}` : "Nenhum número cadastrado"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Use formato internacional com código do país (ex: 5511999999999)</p>
           </div>
         </div>
       )}

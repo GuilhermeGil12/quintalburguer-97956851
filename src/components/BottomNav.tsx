@@ -1,4 +1,4 @@
-import { LayoutGrid, ChefHat, BarChart3, Package, Beaker, LogOut } from "lucide-react";
+import { LayoutGrid, ChefHat, BarChart3, Package, Beaker, LogOut, Globe } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -7,6 +7,7 @@ const navItems = [
   { path: "/cozinha", label: "Cozinha", icon: ChefHat },
   { path: "/estoque", label: "Estoque", icon: Package },
   { path: "/ingredientes", label: "Itens", icon: Beaker },
+  { path: "/online", label: "Online", icon: Globe },
   { path: "/admin", label: "Admin", icon: BarChart3 },
 ];
 

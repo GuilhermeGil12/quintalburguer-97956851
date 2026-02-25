@@ -10,6 +10,7 @@ import Inventory from "./pages/Inventory";
 import Admin from "./pages/Admin";
 import TableOrders from "./pages/TableOrders";
 import Ingredients from "./pages/Ingredients";
+import OnlineOrders from "./pages/OnlineOrders";
 import OnlineOrder from "./pages/OnlineOrder";
 import Login from "./pages/Login";
 import TrackOrder from "./pages/TrackOrder";
@@ -42,6 +43,7 @@ const AppRoutes = () => {
         <Route path="/cozinha" element={<ProtectedRoute><Kitchen /></ProtectedRoute>} />
         <Route path="/estoque" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/ingredientes" element={<ProtectedRoute><Ingredients /></ProtectedRoute>} />
+        <Route path="/online" element={<ProtectedRoute><OnlineOrders /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
