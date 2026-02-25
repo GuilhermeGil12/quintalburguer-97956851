@@ -158,9 +158,21 @@ const OnlineOrder = () => {
     }
   };
 
+  const { data: whatsappSetting } = useQuery({
+    queryKey: ["settings-whatsapp-number"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("*").eq("key", "whatsapp_number").single();
+      return data;
+    },
+    enabled: step === "done",
+  });
+
   if (step === "done") {
     const trackUrl = lastOrderId ? `${window.location.origin}/acompanhar/${lastOrderId}` : "";
-    const whatsappMsg = encodeURIComponent(`Olá! Acabei de fazer um pedido no Quintal Burguer. Acompanhe aqui: ${trackUrl}`);
+    const storePhone = whatsappSetting?.value || "";
+    const cleanPhone = storePhone.replace(/\D/g, "");
+    const whatsappMsg = encodeURIComponent(`Olá! Acabei de fazer um pedido no Quintal Burguer.\n\nNome: ${customerName}\nAcompanhe aqui: ${trackUrl}`);
+    const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${whatsappMsg}` : "";
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-background">
         <div className="glass-card p-8 text-center max-w-sm w-full">
@@ -172,12 +184,14 @@ const OnlineOrder = () => {
               📍 Acompanhar meu pedido
             </a>
           )}
-          <div className="flex gap-2 mb-3">
-            <a href={`https://wa.me/?text=${whatsappMsg}`} target="_blank" rel="noopener noreferrer"
-              className="flex-1 h-12 rounded-lg bg-[#25D366] text-white font-bold flex items-center justify-center gap-2 touch-target">
-              📱 Compartilhar
-            </a>
-          </div>
+          {cleanPhone && (
+            <div className="flex gap-2 mb-3">
+              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
+                className="flex-1 h-12 rounded-lg bg-[#25D366] text-white font-bold flex items-center justify-center gap-2 touch-target">
+                📱 Enviar no WhatsApp
+              </a>
+            </div>
+          )}
           <Button onClick={() => { setStep("menu"); setCart([]); setCustomerName(""); setCustomerPhone(""); setAddress(""); setNotes(""); setLastOrderId(null); }} className="gradient-primary text-primary-foreground h-12 w-full touch-target">
             Fazer Novo Pedido
           </Button>
