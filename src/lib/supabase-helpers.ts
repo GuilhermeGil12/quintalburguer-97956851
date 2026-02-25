@@ -57,6 +57,11 @@ export const upsertExtra = async (extra: { id?: string; name: string; price: num
   return data;
 };
 
+export const deleteExtra = async (id: string) => {
+  const { error } = await supabase.from("extras").delete().eq("id", id);
+  if (error) throw error;
+};
+
 // Tables
 export const fetchTables = async () => {
   const { data, error } = await supabase.from("tables").select("*").order("number");

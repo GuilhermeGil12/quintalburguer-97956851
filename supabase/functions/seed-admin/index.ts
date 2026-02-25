@@ -17,14 +17,16 @@ Deno.serve(async (req) => {
     );
 
     const email = "quintaladmin@burgercommand.app";
-    const password = "burguerquinta@2026";
+    const password = "burguerquintal@2026";
 
     // Check if user already exists
     const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
-    const userExists = existing?.users?.some((u: any) => u.email === email);
+    const existingUser = existing?.users?.find((u: any) => u.email === email);
 
-    if (userExists) {
-      return new Response(JSON.stringify({ message: "Admin already exists" }), {
+    if (existingUser) {
+      // Update password
+      await supabaseAdmin.auth.admin.updateUserById(existingUser.id, { password });
+      return new Response(JSON.stringify({ message: "Admin password updated" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

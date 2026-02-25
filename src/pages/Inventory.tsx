@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchProducts, fetchExtras, upsertProduct, upsertExtra, deleteProduct } from "@/lib/supabase-helpers";
+import { fetchProducts, fetchExtras, upsertProduct, upsertExtra, deleteProduct, deleteExtra } from "@/lib/supabase-helpers";
 import { Package, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -49,6 +49,16 @@ const Inventory = () => {
       await deleteProduct(id);
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Produto removido");
+    } catch {
+      toast.error("Erro ao remover");
+    }
+  };
+
+  const handleDeleteExtra = async (id: string) => {
+    try {
+      await deleteExtra(id);
+      queryClient.invalidateQueries({ queryKey: ["extras"] });
+      toast.success("Adicional removido");
     } catch {
       toast.error("Erro ao remover");
     }
@@ -144,7 +154,7 @@ const Inventory = () => {
           <div className="space-y-2">
             {extras.map((extra: any) => (
               <div key={extra.id} className="glass-card p-4 flex items-center gap-3">
-                <div className="flex-1">
+              <div className="flex-1">
                   <h4 className={`font-semibold text-foreground ${!extra.available ? "opacity-50 line-through" : ""}`}>
                     {extra.name}
                   </h4>
@@ -154,6 +164,12 @@ const Inventory = () => {
                   checked={extra.available}
                   onCheckedChange={() => handleToggleExtraAvailable(extra)}
                 />
+                <button
+                  onClick={() => handleDeleteExtra(extra.id)}
+                  className="touch-target p-2 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             ))}
           </div>
