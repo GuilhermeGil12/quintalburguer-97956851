@@ -12,6 +12,7 @@ import TableOrders from "./pages/TableOrders";
 import Ingredients from "./pages/Ingredients";
 import OnlineOrder from "./pages/OnlineOrder";
 import Login from "./pages/Login";
+import TrackOrder from "./pages/TrackOrder";
 import NotFound from "./pages/NotFound";
 import BottomNav from "./components/BottomNav";
 
@@ -32,6 +33,7 @@ const AppRoutes = () => {
       <Routes>
         {/* Public routes */}
         <Route path="/pedido" element={<OnlineOrder />} />
+        <Route path="/acompanhar/:id" element={<TrackOrder />} />
         <Route path="/login" element={user && !loading ? <Navigate to="/" replace /> : <Login />} />
 
         {/* Protected routes */}

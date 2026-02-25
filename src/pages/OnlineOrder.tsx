@@ -24,6 +24,7 @@ interface CartItem {
 
 const OnlineOrder = () => {
   const [step, setStep] = useState<"menu" | "cart" | "checkout" | "done">("menu");
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState("lanches");
   const [configuringProduct, setConfiguringProduct] = useState<any>(null);
@@ -146,6 +147,7 @@ const OnlineOrder = () => {
       // Deduct ingredients from stock
       await deductIngredients(cart);
 
+      setLastOrderId(order.id);
       setStep("done");
       toast.success("Pedido enviado com sucesso!");
     } catch (err) {
@@ -157,13 +159,26 @@ const OnlineOrder = () => {
   };
 
   if (step === "done") {
+    const trackUrl = lastOrderId ? `${window.location.origin}/acompanhar/${lastOrderId}` : "";
+    const whatsappMsg = encodeURIComponent(`Olá! Acabei de fazer um pedido no Quintal Burguer. Acompanhe aqui: ${trackUrl}`);
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-background">
         <div className="glass-card p-8 text-center max-w-sm w-full">
           <CheckCircle2 className="h-16 w-16 text-primary mx-auto mb-4" />
           <h1 className="text-4xl text-primary mb-2">Pedido Enviado!</h1>
           <p className="text-muted-foreground mb-6">Seu pedido foi recebido e logo será preparado.</p>
-          <Button onClick={() => { setStep("menu"); setCart([]); setCustomerName(""); setCustomerPhone(""); setAddress(""); setNotes(""); }} className="gradient-primary text-primary-foreground h-12 w-full touch-target">
+          {lastOrderId && (
+            <a href={trackUrl} className="block mb-3 text-sm text-primary underline">
+              📍 Acompanhar meu pedido
+            </a>
+          )}
+          <div className="flex gap-2 mb-3">
+            <a href={`https://wa.me/?text=${whatsappMsg}`} target="_blank" rel="noopener noreferrer"
+              className="flex-1 h-12 rounded-lg bg-[#25D366] text-white font-bold flex items-center justify-center gap-2 touch-target">
+              📱 Compartilhar
+            </a>
+          </div>
+          <Button onClick={() => { setStep("menu"); setCart([]); setCustomerName(""); setCustomerPhone(""); setAddress(""); setNotes(""); setLastOrderId(null); }} className="gradient-primary text-primary-foreground h-12 w-full touch-target">
             Fazer Novo Pedido
           </Button>
         </div>
