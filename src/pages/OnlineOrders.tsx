@@ -50,12 +50,12 @@ const OnlineOrders = () => {
   const completedOrders = onlineOrders.filter((o: any) => ["delivered", "cancelled"].includes(o.status));
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6">
+    <div className="min-h-screen pb-24 px-3 sm:px-4 pt-6">
       <div className="flex items-center gap-3 mb-6">
-        <Globe className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl text-primary">Pedidos Online</h1>
-          <p className="text-muted-foreground text-sm">{activeOrders.length} pedido(s) ativo(s)</p>
+        <Globe className="h-7 w-7 sm:h-8 sm:w-8 text-primary shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl text-primary truncate">Pedidos Online</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">{activeOrders.length} pedido(s) ativo(s)</p>
         </div>
       </div>
 
@@ -65,7 +65,7 @@ const OnlineOrders = () => {
 
       {activeOrders.length > 0 && (
         <div className="space-y-3 mb-6">
-          <h2 className="text-lg font-bold text-foreground">Ativos</h2>
+          <h2 className="text-base sm:text-lg font-bold text-foreground">Ativos</h2>
           {activeOrders.map((order: any) => (
             <OrderCard key={order.id} order={order} expanded={expandedOrders.has(order.id)} onToggle={toggleExpand} onUpdateStatus={handleUpdateStatus} />
           ))}
@@ -74,7 +74,7 @@ const OnlineOrders = () => {
 
       {completedOrders.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-bold text-muted-foreground">Concluídos / Cancelados</h2>
+          <h2 className="text-base sm:text-lg font-bold text-muted-foreground">Concluídos / Cancelados</h2>
           {completedOrders.map((order: any) => (
             <OrderCard key={order.id} order={order} expanded={expandedOrders.has(order.id)} onToggle={toggleExpand} onUpdateStatus={handleUpdateStatus} />
           ))}
@@ -85,18 +85,18 @@ const OnlineOrders = () => {
 };
 
 const OrderCard = ({ order, expanded, onToggle, onUpdateStatus }: { order: any; expanded: boolean; onToggle: (id: string) => void; onUpdateStatus: (id: string, status: string) => void }) => (
-  <div className="glass-card p-4">
+  <div className="glass-card p-3 sm:p-4">
     <button onClick={() => onToggle(order.id)} className="w-full text-left">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h4 className="font-semibold text-foreground flex items-center gap-2">
-            {order.delivery_type === "delivery" ? <Truck className="h-4 w-4 text-primary" /> : <Store className="h-4 w-4 text-primary" />}
-            {order.customer_name}
-            {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      <div className="flex justify-between items-start gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <h4 className="font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
+            {order.delivery_type === "delivery" ? <Truck className="h-4 w-4 text-primary shrink-0" /> : <Store className="h-4 w-4 text-primary shrink-0" />}
+            <span className="truncate">{order.customer_name}</span>
+            {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
           </h4>
-          <p className="text-xs text-muted-foreground">{order.customer_phone} · {new Date(order.created_at).toLocaleString("pt-BR")}</p>
+          <p className="text-xs text-muted-foreground truncate">{order.customer_phone} · {new Date(order.created_at).toLocaleString("pt-BR")}</p>
         </div>
-        <span className="text-lg font-bold text-primary">R$ {Number(order.total).toFixed(2)}</span>
+        <span className="text-base sm:text-lg font-bold text-primary whitespace-nowrap shrink-0">R$ {Number(order.total).toFixed(2)}</span>
       </div>
     </button>
 
@@ -106,23 +106,23 @@ const OrderCard = ({ order, expanded, onToggle, onUpdateStatus }: { order: any; 
           <p className="text-foreground font-medium">
             {order.delivery_type === "delivery" ? "🚛 Entrega" : "🏪 Retirada no local"}
           </p>
-          {order.address && <p className="text-muted-foreground">📍 {order.address}</p>}
+          {order.address && <p className="text-muted-foreground break-words">📍 {order.address}</p>}
           <p className="text-muted-foreground">
             💰 {paymentLabels[order.payment_method] || order.payment_method}
             {order.needs_change && ` · Troco para R$ ${Number(order.change_for).toFixed(2)}`}
           </p>
-          {order.notes && <p className="text-warning">Obs: {order.notes}</p>}
+          {order.notes && <p className="text-warning break-words">Obs: {order.notes}</p>}
         </div>
         {(order.online_order_items || []).map((item: any) => (
           <div key={item.id} className="text-xs text-muted-foreground">
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-2">
               <span className="font-medium text-foreground">{item.quantity}x {item.product_name}</span>
-              <span>R$ {Number(item.total).toFixed(2)}</span>
+              <span className="shrink-0">R$ {Number(item.total).toFixed(2)}</span>
             </div>
             {item.online_order_item_extras?.length > 0 && (
-              <p className="text-primary ml-4">+ {item.online_order_item_extras.map((e: any) => e.extra_name).join(", ")}</p>
+              <p className="text-primary ml-4 break-words">+ {item.online_order_item_extras.map((e: any) => e.extra_name).join(", ")}</p>
             )}
-            {item.observations && <p className="text-warning ml-4">Obs: {item.observations}</p>}
+            {item.observations && <p className="text-warning ml-4 break-words">Obs: {item.observations}</p>}
           </div>
         ))}
         {order.delivery_type === "delivery" && order.delivery_fee > 0 && (
@@ -132,12 +132,12 @@ const OrderCard = ({ order, expanded, onToggle, onUpdateStatus }: { order: any; 
     )}
 
     <div className="flex items-center gap-2 flex-wrap">
-      <span className={`text-xs px-3 py-1 rounded-full border ${order.status === "delivered" || order.status === "cancelled" ? "bg-muted text-muted-foreground" : "status-preparing"}`}>
+      <span className={`text-xs px-2 sm:px-3 py-1 rounded-full border whitespace-nowrap ${order.status === "delivered" || order.status === "cancelled" ? "bg-muted text-muted-foreground" : "status-preparing"}`}>
         {statusLabels[order.status] || order.status}
       </span>
       {order.status !== "delivered" && order.status !== "cancelled" && (
         <select value={order.status} onChange={e => onUpdateStatus(order.id, e.target.value)}
-          className="h-8 rounded-md bg-secondary border border-border text-foreground px-2 text-xs">
+          className="h-8 rounded-md bg-secondary border border-border text-foreground px-2 text-xs min-w-0 max-w-[160px]">
           <option value="pending">Pendente</option>
           <option value="confirmed">Confirmado</option>
           <option value="preparing">Preparando</option>
